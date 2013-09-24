@@ -1,6 +1,7 @@
 *.[od]
 *.exe
 *.ho
+.svn
 codec-cfg
 codec-cfg-test
 codecs2html
@@ -11,7 +12,6 @@ ffmpeg
 gmplayer
 help_mp.h
 mencoder
-mplayer
 tags
 TAGS
 version.h
