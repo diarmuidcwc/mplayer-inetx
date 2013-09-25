@@ -1,0 +1,19 @@
+This is a fork of mplayer to support playing of inetx data streams
+It is compiled to run on Linux, specifically Ubuntu13.04
+
+Support for inetx over UDP has been added
+mplayer inetx://235.0.0.1:8010
+
+To compile:
+
+Setup base ubuntu system with the following:
+apt-get install build-essential git subversion yasm libx11-dev
+apt-get install build-essential libvdpau-dev
+apt-get install build-essential libvdpau-doc
+apt-get install libtool autoconf pkg-config
+apt-get install libxext-dev
+
+Compile:
+./configure --enable-runtime-cpudetection --enable-vdpau  --disable-libdvdcss-internal
+make
+ 
