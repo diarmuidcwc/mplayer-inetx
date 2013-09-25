@@ -1,0 +1,180 @@
+#!/bin/bash
+#
+# This configure script is *not* autoconf-based and has different semantics.
+#
+
+# Prevent locale nonsense from breaking basic text processing utilities
+export LC_ALL=C
+
+# Extract revision number from snapshot_version, then 'svn info'. If both fail, "UNKNOWN"
+# Used only for compiled binary directory
+svn_revision=$(cat snapshot_version 2> /dev/null)
+test $svn_revision || svn_revision=$(LC_ALL=C svn info 2> /dev/null | grep Revision | cut -d' ' -f2)
+test $svn_revision || svn_revision=UNKNOWN
+version=$svn_revision
+
+# Get GCC Target
+gcctarget=$(LC_ALL=C i586-mingw32msvc-gcc -v 2>&1 /dev/null | grep "Target:" | cut -d' ' -f2)
+
+# Default configure options
+default_opts="--enable-static --enable-runtime-cpudetection --enable-menu --disable-inet6 --disable-libmpeg2-internal --disable-tv --disable-vidix --disable-faac-lavc --enable-cross-compile --windres=i586-mingw32msvc-windres --cc=i586-mingw32msvc-gcc --ar=i586-mingw32msvc-ar --ranlib=i586-mingw32msvc-ranlib"
+
+# Default options
+_build_mencoder=no
+_build_mplayer=yes
+_debug=no
+_dryrun=no
+_prefix="./"
+_with_opts=
+_x64=auto
+
+for ac_option do
+  case "$ac_option" in
+  --help|-help|-h)
+    show_help
+    ;;
+  --prefix=*)
+    _prefix=$(echo $ac_option | cut -d '=' -f 2)
+    ;;
+  --with-opts=*)
+    _with_opts=$(echo $ac_option | cut -d '=' -f 2)
+    ;;
+  --nomake-mencoder)   _build_mencoder=no    ;;
+  --nomake-mplayer)    _build_mplayer=no     ;;
+  --make-debug)    _debug=yes     ;;
+  --dry-run)    _dryrun=yes     ;;
+
+  --x64)    _x64=yes     ;;
+  *)
+    echo "Unknown parameter: $ac_option"
+    exit 1
+    ;;
+
+  esac
+done
+
+
+# Functions
+show_help(){
+cat << EOF
+Usage: $0 [OPTIONS]...
+
+Configuration:
+  -h, --help             display this help and exit
+
+Installation directories:
+  --prefix=DIR           prefix directory for installation [/usr/local]
+
+Optional features:
+  --nomake-mencoder     disable MEncoder (A/V encoder) compilation [enable]
+  --nomake-mplayer      disable MPlayer compilation [enable]
+  --make-debug          compile-in debugging information (level 3) [disable]
+  --dry-run             run configure but do not start compile
+
+  --with-opts=          Pass additional parameters
+
+NOTE: Some of these options are similar to mplayer's configure script but do
+not mean the same thing! The mplayer and mencoder executables are compiled
+separately, with --disable-mencoder used during mplayer compilation to reduce
+the binary size of mplayer.
+
+This script is intended to automate building mplayer and/or mencoder using
+the same options that I use. Executables will be placed by default in 
+/usr/local/mpl-bin-r(REVISION) but can be customized by using --prefix.
+Prefix paths must not contain colons. Windows paths must be written like so:
+
+  /c/Projects/mplayer
+
+EOF
+exit 0
+} #show_help()
+
+# build_fixes(){
+#    r36442
+#    sed -i 's/CONFIG_UNIX_PROTOCOL = yes/CONFIG_UNIX_PROTOCOL = no/g' config.mak
+#    sed -i 's/#define CONFIG_UNIX_PROTOCOL 1/#define CONFIG_UNIX_PROTOCOL 0/g' config.h
+#}
+
+make_instdir(){
+if test ! -d "$install_dir" ; then
+  mkdir "$install_dir"
+fi
+}
+
+# Determine if MinGW is 32-bit/64-bit (based on target)
+if test "$_x64" = auto ; then
+  if test "$gcctarget" = "i686-w64-mingw32" ; then
+    _x64=no
+  elif test "$gcctarget" = "x86_64-w64-mingw32" ; then
+    _x64=yes
+  elif test "$gcctarget" = "mingw32" ; then
+    _x64=no
+  else
+    _x64=no
+  fi
+fi
+
+# Prepare directory name
+if test "$_x64" = yes ; then
+  x86_64dirprefix="-x64"
+  x86_64binsuffix="64"
+  liveopts="--extra-cflags=-I/mingw/src/live-x64"
+else 
+  x86_64dirprefix=
+  x86_64binsuffix=
+  liveopts="--extra-cflags=-I/mingw/src/live"
+fi
+
+if test "$_debug" = yes ; then
+  debug_opts="--enable-debug=3"
+  debug_bin_suffix1="-d"
+  debug_bin_suffix2="d-"
+fi
+
+# Check if mpl-bin-r(REVISION) exists, if it does, append a number
+# and increment it until a directory with the appended number isn't
+# found and use that.
+if test -d "$_prefix/mpl-bin$x86_64dirprefix-r$version$debug_bin_suffix1" ; then
+  count=2
+  while [ 2 ]
+  do
+    if [ ! -d $_prefix/mpl-bin$x86_64dirprefix-r$version-"$debug_bin_suffix2$count" ] ; then
+        install_dir=$_prefix/mpl-bin$x86_64dirprefix-r$version-"$debug_bin_suffix2$count"
+        break
+    fi
+    count=$[count+1]
+  done
+else
+  install_dir=$_prefix/mpl-bin$x86_64dirprefix-r$version$debug_bin_suffix1
+fi
+
+# Compile MPlayer
+if test "$_build_mplayer" = yes ; then
+  make distclean; ./configure $liveopts $default_opts --disable-mencoder $_with_opts $debug_opts
+  if test "$_dryrun" = yes ; then
+    exit
+  fi
+
+  if [ -e "config.mak" ] && [ -e "config.h" ] ; then
+    # build_fixes
+    make
+
+    set -x
+
+    make_instdir
+
+    if test "$_debug" = yes ; then
+      cp mplayer.exe $install_dir/mplayer$x86_64binsuffix.exe.debug
+      cp mencoder.exe $install_dir/mencoder$x86_64binsuffix.exe.debug
+    else
+      strip -s mplayer.exe -o $install_dir/mplayer$x86_64binsuffix.exe
+      strip -s mencoder.exe -o $install_dir/mencoder$x86_64binsuffix.exe
+    fi
+
+    set +x
+
+  fi
+fi
+
+
+make distclean
