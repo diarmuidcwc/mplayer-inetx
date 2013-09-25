@@ -14,10 +14,10 @@ test $svn_revision || svn_revision=UNKNOWN
 version=$svn_revision
 
 # Get GCC Target
-gcctarget=$(LC_ALL=C i586-mingw32msvc-gcc -v 2>&1 /dev/null | grep "Target:" | cut -d' ' -f2)
+gcctarget=$(LC_ALL=C i686-w64-mingw32-gcc -v 2>&1 /dev/null | grep "Target:" | cut -d' ' -f2)
 
 # Default configure options
-default_opts="--enable-static --enable-runtime-cpudetection --enable-menu --disable-inet6 --disable-libmpeg2-internal --disable-tv --disable-vidix --disable-faac-lavc --enable-cross-compile --windres=i586-mingw32msvc-windres --cc=i586-mingw32msvc-gcc --ar=i586-mingw32msvc-ar --ranlib=i586-mingw32msvc-ranlib"
+default_opts="--enable-static --enable-runtime-cpudetection --enable-menu --disable-inet6 --disable-libmpeg2-internal --disable-tv --disable-vidix --disable-faac-lavc --enable-cross-compile --windres=i686-w64-mingw32-windres --cc=i686-w64-mingw32-gcc --ar=i686-w64-mingw32-ar --ranlib=i686-w64-mingw32-ranlib"
 
 # Default options
 _build_mencoder=no
@@ -176,5 +176,3 @@ if test "$_build_mplayer" = yes ; then
   fi
 fi
 
-
-make distclean
