@@ -1,5 +1,4 @@
 *.[od]
-*.exe
 *.ho
 codec-cfg
 codec-cfg-test
